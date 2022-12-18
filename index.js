@@ -1,29 +1,58 @@
-const theLib = require('crypto-js');
 const filesystem = require('fs');
-
-const getEncrypted = (filename, algo, secret) => {
-    //read the file
+const readDecrypted = (filename) => {
     const data_buffer = filesystem.readFileSync(filename);
-    const data = JSON.stringify(data_buffer);
-    //console.log(data)
-    filesystem.writeFileSync('test_'+filename, data, 'utf8');
-    const encrypted = require('crypto-js')[algo].encrypt(data, "test");
-    const data_ = encrypted.toString();
-    //write the file
-    filesystem.writeFileSync('enc_' + algo + filename, data_);
+    return {
+        data: JSON.stringify(data_buffer),
+        filename: filename
+    }
 }
-const getDecrypted = (filename, algo, secret) => {
-    //read the file
-    const data = filesystem.readFileSync('enc_' + algo + filename).toString();
-    const decrypted = require('crypto-js')[algo].decrypt(data, "test");
+const writeDecrypted = (filename, decrypted) => {
+    const decrypted_buffer = Buffer.from(JSON.parse(decrypted).data,"binary");
+    console.log(decrypted_buffer)
+    filesystem.writeFile(filename, decrypted_buffer,"binary", (err) => {
+        if (err) throw err;
+        
+    });
+    return {
+        data: decrypted_buffer,
+        filename: filename
+    }
+}
+const readEncrypted = (filename) => {
+    return {
+        data: filesystem.readFileSync(filename).toString(),
+        filename: filename
+    }
+}
+const writeEncrypted = (filename, encrypted) => {
+    filesystem.writeFileSync(filename, encrypted);
+    return {
+        data: encrypted,
+        filename: filename
+    }
+}
+const getEncrypted = (filename,fileData, algo, secret) => {
+    console.log(algo)
+    const thisAlgo = require('crypto-js')[algo];
+    console.log(thisAlgo)
+    const encrypted = thisAlgo.encrypt(fileData, secret.toString());
+    const data_ = encrypted.toString();
+    return {
+        data: data_,
+        filename: filename
+    }
+}
+const getDecrypted = (filename,fileData, algo, secret) => {
+    const decrypted = require('crypto-js')[algo].decrypt(fileData, secret.toString());
     const decrypted_ = decrypted.toString(require('crypto-js/enc-utf8'));
     console.log(decrypted_)
-    const decrypted_buffer = Buffer.from(JSON.parse(decrypted_).data);
-    //write the file
-    filesystem.writeFileSync('dec_' + algo + filename, decrypted_buffer);
+    return {
+        data: decrypted_,
+        filename: filename
+    }
 }
 
-const flow = [ 
+const flow = [
     "AES",
     "DES",
     "TripleDES",
@@ -32,14 +61,32 @@ const flow = [
 ]
 
 const files = [
-    "file1",
-    "file2",
+    "EvilMortyS3.webp",
 ]
 const secret_ = "test";
-flow.forEach((algo) => {
-    files.forEach((file) => {
-        console.log("testing " + algo, secret_);
-        getEncrypted(file, algo, secret_);
-        getDecrypted(file, algo, secret_);
+const encrypt_cascade = (file, flow, secret) => {
+    var check_name = "";
+    var last = readDecrypted(file);
+    flow.forEach((algo) => {
+        check_name += algo + "_"
+        console.log(check_name)
+        const encrypted = getEncrypted(last.filename,last.data, algo, secret);
+        last = encrypted;
     })
-});
+    return writeEncrypted(check_name + file, last.data);
+}
+const decrypt_cascade = (file, flow, secret) => {
+    var last = readEncrypted(file);
+    var check_name = last.filename;
+    flow.forEach((algo) => {
+        check_name = check_name.replace(algo + "_", "");
+        const decrypted = getDecrypted(last.filename,last.data, algo, secret);
+        last = decrypted;
+    })
+    writeDecrypted("decrypted_"+check_name, last.data);
+}
+
+const encrypted = encrypt_cascade("EvilMortyS3.webp", flow, secret_).filename
+console.log(encrypted)
+//const encrypted = 'AES_DES_TripleDES_Rabbit_RC4_EvilMortyS3.webp';
+decrypt_cascade(encrypted, flow.reverse(), secret_);
