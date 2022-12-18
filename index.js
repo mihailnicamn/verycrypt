@@ -23,8 +23,7 @@ const getDecrypted = (filename, algo, secret) => {
     filesystem.writeFileSync('dec_' + algo + filename, decrypted_buffer);
 }
 
-
-const flow = [ //encrypt the encrypted mfker 😂
+const flow = [ 
     "AES",
     "DES",
     "TripleDES",
@@ -33,11 +32,10 @@ const flow = [ //encrypt the encrypted mfker 😂
 ]
 
 const files = [
-    "EvilMortyS3-1.webp",
-    "alarm.mp3"
+    "file1",
+    "file2",
 ]
 const secret_ = "test";
-
 flow.forEach((algo) => {
     files.forEach((file) => {
         console.log("testing " + algo, secret_);
